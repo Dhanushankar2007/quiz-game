@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Quiz Game</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            background: linear-gradient(120deg, #fdf6e3 0%, #e0e7ff 100%);
+            font-family: 'Segoe UI', Arial, sans-serif;
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .quiz-container {
+            background: #fff;
+            border-radius: 18px;
+            box-shadow: 0 4px 24px rgba(100, 116, 139, 0.10), 0 1.5px 8px rgba(100,116,139,0.08);
+            padding: 36px 28px;
+            max-width: 400px;
+            width: 100%;
+            text-align: center;
+            position: relative;
+        }
+        .question {
+            font-size: 1.25em;
+            margin-bottom: 22px;
+            color: #374151;
+        }
+        .choices {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            margin-bottom: 24px;
+        }
+        .choice-btn {
+            background: #e0e7ff;
+            border: none;
+            border-radius: 8px;
+            padding: 12px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .choice-btn:hover {
+            background: #a5b4fc;
+        }
+        .score, .timer {
+            font-size: 1.1em;
+            margin-bottom: 12px;
+            color: #2563eb;
+        }
+        .result {
+            font-size: 1.3em;
+            color: #059669;
+            margin-top: 18px;
+        }
+        .restart-btn {
+            background: #2563eb;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            padding: 10px 22px;
+            font-size: 1em;
+            cursor: pointer;
+            margin-top: 18px;
+            transition: background 0.2s;
+        }
+        .restart-btn:hover {
+            background: #1e40af;
+        }
+        @media (max-width: 500px) {
+            .quiz-container {
+                padding: 18px 4px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="quiz-container" id="quizContainer">
+        <div class="score" id="score"></div>
+        <div class="timer" id="timer"></div>
+        <div class="question" id="question"></div>
+        <div class="choices" id="choices"></div>
+        <div class="result" id="result"></div>
+        <button class="restart-btn" id="restartBtn" style="display:none;">Restart Quiz</button>
+    </div>
+    <audio id="correctSound" src="https://cdn.pixabay.com/audio/2022/07/26/audio_124bfae4b7.mp3"></audio>
+    <audio id="wrongSound" src="https://cdn.pixabay.com/audio/2022/07/26/audio_124bfae4b7.mp3"></audio>
+    <audio id="endSound" src="https://cdn.pixabay.com/audio/2022/07/26/audio_124bfae4b7.mp3"></audio>
+    <script>
+        // Quiz questions
+        const questions = [
+            {
+                question: "What is the capital of France?",
+                choices: ["Berlin", "London", "Paris", "Madrid"],
+                answer: 2
+            },
+            {
+                question: "Which planet is known as the Red Planet?",
+                choices: ["Earth", "Mars", "Jupiter", "Saturn"],
+                answer: 1
+            },
+            {
+                question: "Who wrote 'Romeo and Juliet'?",
+                choices: ["William Shakespeare", "Charles Dickens", "Mark Twain", "Jane Austen"],
+                answer: 0
+            },
+            {
+                question: "What is the largest mammal?",
+                choices: ["Elephant", "Blue Whale", "Giraffe", "Polar Bear"],
+                answer: 1
+            },
+            {
+                question: "Which element has the chemical symbol 'O'?",
+                choices: ["Gold", "Oxygen", "Silver", "Iron"],
+                answer: 1
+            }
+        ];
+
+        let currentQuestion = 0;
+        let score = 0;
+        let timer = 15;
+        let timerInterval = null;
+
+        const questionEl = document.getElementById('question');
+        const choicesEl = document.getElementById('choices');
+        const scoreEl = document.getElementById('score');
+        const timerEl = document.getElementById('timer');
+        const resultEl = document.getElementById('result');
+        const restartBtn = document.getElementById('restartBtn');
+
+        const correctSound = document.getElementById('correctSound');
+        const wrongSound = document.getElementById('wrongSound');
+        const endSound = document.getElementById('endSound');
+
+        // Use different sounds for correct/wrong/end
+        correctSound.src = "https://cdn.pixabay.com/audio/2022/03/15/audio_115b9b7bfa.mp3";
+        wrongSound.src = "https://cdn.pixabay.com/audio/2022/03/15/audio_115b9b7bfa.mp3";
+        endSound.src = "https://cdn.pixabay.com/audio/2022/03/15/audio_115b9b7bfa.mp3";
+
+        function startQuiz() {
+            currentQuestion = 0;
+            score = 0;
+            resultEl.textContent = '';
+            restartBtn.style.display = 'none';
+            showQuestion();
+        }
+
+        function showQuestion() {
+            if (currentQuestion >= questions.length) {
+                showResult();
+                return;
+            }
+            scoreEl.textContent = `Score: ${score} / ${questions.length}`;
+            timer = 15;
+            timerEl.textContent = `Time Left: ${timer}s`;
+            questionEl.textContent = questions[currentQuestion].question;
+            choicesEl.innerHTML = '';
+            questions[currentQuestion].choices.forEach((choice, idx) => {
+                const btn = document.createElement('button');
+                btn.className = 'choice-btn';
+                btn.textContent = choice;
+                btn.onclick = (event) => selectAnswer(idx, event);
+                choicesEl.appendChild(btn);
+            });
+            startTimer();
+        }
+
+        function startTimer() {
+            clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
+                timer--;
+                timerEl.textContent = `Time Left: ${timer}s`;
+                if (timer <= 0) {
+                    clearInterval(timerInterval);
+                    wrongSound.play();
+                    showNextQuestion(false);
+                }
+            }, 1000);
+        }
+
+        function selectAnswer(idx, event) {
+            clearInterval(timerInterval);
+            const correct = idx === questions[currentQuestion].answer;
+            if (correct) {
+                score++;
+                correctSound.play();
+            } else {
+                wrongSound.play();
+            }
+            showNextQuestion(true);
+        }
+
+        function showNextQuestion(selected) {
+            Array.from(choicesEl.children).forEach((btn, idx) => {
+                btn.disabled = true;
+                if (idx === questions[currentQuestion].answer) {
+                    btn.style.background = "#bbf7d0";
+                } else if (selected && btn === event.target) {
+                    btn.style.background = "#fecaca";
+                }
+            });
+            setTimeout(() => {
+                currentQuestion++;
+                showQuestion();
+            }, 900);
+        }
+
+        function showResult() {
+            scoreEl.textContent = `Final Score: ${score} / ${questions.length}`;
+            timerEl.textContent = '';
+            questionEl.textContent = '';
+            choicesEl.innerHTML = '';
+            resultEl.textContent = score === questions.length
+                ? "🎉 Perfect! You're a quiz master!"
+                : `Quiz Over! Your score: ${score} / ${questions.length}`;
+            endSound.play();
+            restartBtn.style.display = 'inline-block';
+        }
+
+        restartBtn.onclick = startQuiz;
+
+        // Start the quiz on page load
+        startQuiz();
+    </script>
+</body>
